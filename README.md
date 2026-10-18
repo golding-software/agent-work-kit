@@ -54,3 +54,7 @@ The plugins under `plugins/` are the source. `.claude/skills/` and `managed-agen
 run `python3 scripts/build.py` after any change (CI runs `--check`).
 
 MIT licensed. Made by [Golding Software](https://goldingsoftware.com.au).
+
+## Built with Claude
+
+This kit was designed, written and tested by Horacio Golding together with Claude (Anthropic's Claude Code). It is a team effort and every commit says so with a `Co-Authored-By` trailer. The claims in this repository are limited to what was measured; the evaluation numbers come from our own small evaluations, described in `docs/competitive-analysis.md` and the plugin READMEs.
