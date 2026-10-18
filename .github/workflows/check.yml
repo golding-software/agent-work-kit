@@ -1,0 +1,24 @@
+name: check
+on: [push, pull_request]
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: {python-version: "3.12"}
+      - name: Generated copies are current, skills meet every surface's rules
+        run: python3 scripts/build.py --check
+      - name: Skill tests
+        run: python3 -m unittest discover -s skills/sync-repos/tests -q
+      - name: Org guard tests
+        run: python3 -m unittest discover -s claude/org-guard/tests -q
+      - name: fetch-ticket.sh parses
+        run: bash -n ci/fetch-ticket.sh
+      - name: Plugin manifests validate
+        run: |
+          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
+          claude plugin validate --strict claude/plugins/work-room
+          claude plugin validate --strict claude/plugins/pr-review
+          claude plugin validate --strict .

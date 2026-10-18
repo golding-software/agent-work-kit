@@ -1,0 +1,41 @@
+# PR review for this repository, using the shared workflow from
+# github.com/golding-software/agent-work-kit. Pin a version tag; move it forward to get updates.
+# Review rules: .github/pr-review/rubric.md (optional; the built-in rubric applies without it).
+name: PR review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-review:
+    uses: golding-software/agent-work-kit/.github/workflows/pr-review.yml@{{VERSION}}
+    with:
+      engine: claude                # the only engine implemented today
+      model: {{MODEL}}                # first reviewer (default haiku)
+      auto-approve: {{AUTO_APPROVE}}
+      # Models (defaults shown): Haiku reviews; Sonnet confirms before any approval; large PRs go to
+      # Sonnet with a read-only Haiku context-reader.
+      # confirm-model: sonnet     # "" = approve on Haiku's review alone
+      # large-model: sonnet
+      # large-min-lines: 400
+      # large-min-files: 15
+      # approve-on-minor: false   # true = also approve "ready after minor fixes" (no blocker/major)
+      # jira-projects: "KAN"      # Jira project keys found anywhere in the title, body or branch
+      # max-budget-usd: "5"       # hard cap per review (default 5)
+      jira-base-url: {{JIRA_BASE_URL}}
+      require-ticket: {{REQUIRE_TICKET}}
+    secrets:
+      {{AUTH_SECRET}}
+      jira-email: ${{ secrets.JIRA_EMAIL }}
+      jira-api-token: ${{ secrets.JIRA_API_TOKEN }}

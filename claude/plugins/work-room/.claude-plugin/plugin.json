@@ -1,0 +1,20 @@
+{
+  "name": "work-room",
+  "displayName": "Work Room",
+  "version": "0.1.0",
+  "description": "A ready-to-edit Claude Code room for one client or project: an orchestrator that sizes each request, a Haiku/Sonnet/Opus worker ladder, a shared register so parallel sessions don't collide.",
+  "author": {
+    "name": "Golding Software",
+    "url": "https://goldingsoftware.com.au"
+  },
+  "homepage": "https://github.com/golding-software/agent-work-kit/tree/main/claude/plugins/work-room",
+  "repository": "https://github.com/golding-software/agent-work-kit",
+  "license": "MIT",
+  "keywords": [
+    "orchestrator",
+    "subagents",
+    "consulting",
+    "client-work",
+    "worktrees"
+  ]
+}

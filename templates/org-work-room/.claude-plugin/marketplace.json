@@ -1,0 +1,17 @@
+{
+  "name": "acme",
+  "description": "Acme's Claude Code plugins: Acme's conventions, built on golding-work/work-room.",
+  "owner": {
+    "name": "Acme"
+  },
+  "allowCrossMarketplaceDependenciesOn": [
+    "golding-work"
+  ],
+  "plugins": [
+    {
+      "name": "acme-conventions",
+      "source": "./plugin",
+      "description": "How work is done at Acme: tracker, specs, environments, conventions. Installs and keeps current the generic work room."
+    }
+  ]
+}
