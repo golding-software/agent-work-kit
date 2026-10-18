@@ -32,6 +32,8 @@ on an already-reviewed PR (a human re-approves; the label `review:full` forces a
 cost is written to the run summary. Draft and bot PRs are skipped. Not yet implemented: reviewing only
 the commits since the last review, and an `@claude review` comment trigger.
 
+**Lessons from production use** (a client's review, 2026-10-18). (1) The first, small-model review does not load the repository's CLAUDE.md (`first-review-loads-claude-md`, off by default): with a ~60K-token CLAUDE.md, Haiku 5.5 hit "Autocompact is thrashing" and ended with no review; it reads CLAUDE.md on demand. (2) The run summary prices each stage from its token counts at list price, because the SDK's own cost figure for Haiku 5.5 was about 30x too high. (3) Approvals are posted by `github-actions[bot]` with the workflow token, which needs the repository setting "Allow GitHub Actions to create and approve pull requests"; if your branch rulesets only accept the Claude App's identity, post the verdict and approval from a small extra `claude-code-action` step instead (`claude-code-action` revokes its App token when each step ends), as the client's workflow does.
+
 **Prompt injection.** The diff, the PR text and the ticket are untrusted input to a model that can
 comment and approve. The reviewer is told to treat them as data and the workflow decides the approval
 from a structured verdict, not from the model's tool calls; but no prompt is a guarantee. Keep
