@@ -189,6 +189,11 @@ Haiku found every root cause Sonnet did (16/16 each), triaged better (90% agains
 nearly as many facts (96% against 99%), at about a tenth of the cost, so investigation, triage,
 research and reviews start on Haiku as well and `worker-sonnet` is the escalation.
 
+**Caveat (2026-10-18):** a Haiku worker in a repository whose CLAUDE.md files total tens of thousands of
+tokens can hit "Autocompact is thrashing" and end with no result at all (seen with ~60K tokens). If a
+Haiku stint returns nothing, shrink the always-loaded CLAUDE.md (move detail into files the worker reads
+on demand) or send that work to the `implementer` rung; do not retry the same brief on Haiku.
+
 Subagents do not start subagents: one level of delegation, always.
 
 ## What needs the user, and only these

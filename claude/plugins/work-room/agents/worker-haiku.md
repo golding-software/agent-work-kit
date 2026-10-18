@@ -7,6 +7,7 @@ description: >-
   user's report, tests, lint and type fixes, dependency bumps, PR fix rounds; and find-out work: an investigation, a
   root-cause hunt, triage, research, a read-only review. Never design.
 model: haiku
+autoCompactWindow: 150000
 color: green
 ---
 

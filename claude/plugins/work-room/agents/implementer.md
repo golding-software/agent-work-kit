@@ -6,6 +6,7 @@ description: >-
   worktree, within a context budget; also the review or PR fix rounds on that ticket. Investigation,
   research and triage go to worker-sonnet. Never designs.
 model: sonnet
+autoCompactWindow: 150000
 color: cyan
 ---
 

@@ -6,6 +6,7 @@ description: >-
   Haiku result bounced or failed review (the attempt attached), and scoping that needs judgement. Tickets and
   their PR fix rounds go to `implementer`. Never designs.
 model: sonnet
+autoCompactWindow: 150000
 color: cyan
 ---
 
