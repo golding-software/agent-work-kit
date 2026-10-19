@@ -13,3 +13,8 @@ A Claude Code room for one client or project.
   orchestrator's own model, and escalate one rung on a failed review with the failed attempt attached.
 
 Other Claude surfaces: [docs/surfaces.md](../../../docs/surfaces.md).
+
+## First run: restart once
+
+A plugin that is enabled by the project's or the organisation's settings installs in the background during the first session on a machine, so that first session may start without it (for example as the default agent, not `work-room:orchestrator`). Exit (`/exit`) and run `claude` again in the same folder: the second session has the plugin. This happens once per machine.
+
