@@ -279,6 +279,19 @@ jobs:
 
       # Claude Code's transcript path is shared by the action steps and overwritten by the next one, so each
       # stage's copy is kept before the next stage runs.
+      # A failed review step hides the model's output; the cause is usually one API error line ("Credit balance is too
+      # low", "Invalid API key", model not available). Print that line (only when the run ended in error).
+      - name: Explain a failed review
+        if: failure() && steps.review.outcome == 'failure'
+        env:
+          F: ${{ steps.review.outputs.execution_file }}
+        run: |
+          f="${F:-$RUNNER_TEMP/claude-execution-output.json}"
+          [ -s "$f" ] || { echo "::error title=Review failed::no transcript was written; check the Review step log and the ANTHROPIC_API_KEY secret"; exit 0; }
+          msg=$(jq -r '[.[]? | select(.type=="result" and .is_error==true)] | last | .result // empty' "$f" 2>/dev/null | head -c 400)
+          [ -n "$msg" ] || msg=$(jq -r '[.[]? | select(.type=="assistant")] | last | .message.content[0].text // empty' "$f" 2>/dev/null | head -c 400)
+          echo "::error title=Review failed::${msg:-the model call returned no result (check the API key, the credit balance and model access)}"
+
       - name: Keep the first review's transcript
         if: always() && steps.gate.outputs.skip != 'true'
         env:
