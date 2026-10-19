@@ -46,6 +46,10 @@ on:
         description: Hard cap on one review's estimated spend, in USD (empty = no cap)
         type: string
         default: '5'
+      show-full-output:
+        description: Print the model's full output in the log (debugging only; it includes the PR's code and the reviewer's reasoning, and the action hides it by default)
+        type: boolean
+        default: false
       first-review-loads-claude-md:
         description: Load the repository's CLAUDE.md files into the first (small-model) review. Off by default, because a very large CLAUDE.md (tens of thousands of tokens) made Haiku 5.5 hit "Autocompact is thrashing" and end the run with no review; the reviewer reads CLAUDE.md on demand instead. The confirm review and the large tier always load it.
         type: boolean
@@ -242,6 +246,7 @@ jobs:
         env:
           CLAUDE_CODE_DISABLE_CLAUDE_MDS: ${{ steps.gate.outputs.tier == 'normal' && !inputs.first-review-loads-claude-md && '1' || '' }}
         with:
+          show_full_output: ${{ inputs.show-full-output }}
           anthropic_api_key: ${{ secrets.anthropic-api-key }}
           claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
           prompt: |
