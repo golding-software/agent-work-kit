@@ -37,7 +37,10 @@ inferred:
    available) and keep the ones the room should cover.
 1. **Project or organisation name** and, in one line, what the room works on.
 2. **The rule that matters most here**: the one mistake that would hurt this client most (for
-   example "production is read-only", "never commit client data", "every change needs a ticket").
+   example "production changes only through a reviewed PR and the pipeline", "never commit client data",
+   "every change needs a ticket"). Make it precise enough to review against: a rule like "production is
+   read-only" is read literally by the PR review and flags every migration, app write and production
+   Terraform change.
 3. **Boundaries**: systems or environments that are off-limits or read-only.
 4. **Git host and base branch** [GitHub, `main`]. Branch pattern [`feature/<KEY>-<slug>`].
 5. **Push and PR autonomy**, one of:
