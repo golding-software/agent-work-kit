@@ -520,7 +520,7 @@ jobs:
           # "ready" means no findings at all; "ready after minor fixes" counts only when approve-on-minor allows it.
           if [ "$blockers" = 0 ] && [ "$majors" = 0 ]; then
             if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then would=true; fi
-            if [ "$ON_MINOR" = true ] && [ "$verdict" = ready_after_minor_fixes ]; then would=true; fi
+            if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then would=true; fi
           fi
           if [ "$would" = true ] && [ -n "$NEVER" ] && grep -qE "$NEVER" "$RUNNER_TEMP/changed.txt"; then
             echo "::notice title=Not approved::the PR changes a path that always needs a human approval ($NEVER)"; would=false; fi
@@ -618,7 +618,7 @@ jobs:
           ok=false
           if [ "$blockers" = 0 ] && [ "$majors" = 0 ]; then
             if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then ok=true; fi
-            if [ "$ON_MINOR" = true ] && [ "$verdict" = ready_after_minor_fixes ]; then ok=true; fi
+            if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then ok=true; fi
           fi
           if [ "$ok" != true ]; then
             echo "::notice title=Not approved::verdict ${verdict:-none}, $blockers blocker(s), $majors major(s), $findings finding(s)"
