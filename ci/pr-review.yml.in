@@ -497,8 +497,8 @@ jobs:
           ids=$(jq -r --slurpfile t "$THREADS" '(.resolved // []) | map(select(. as $i | $t[0] | map(.id) | index($i))) | .[]' <<<"$RESULT" 2>/dev/null || true)
           [ -n "$ids" ] || { echo "no earlier threads to resolve"; exit 0; }
           for id in $ids; do
-            gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id}}}' -f id="$id" >/dev/null 2>&1 \
-              && echo "resolved thread $id" || echo "::warning title=Could not resolve a thread::$id"
+            if out=$(gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id}}}' -f id="$id" 2>&1); then echo "resolved thread $id"
+            else echo "::warning title=Could not resolve a thread::$id: $(echo "$out" | head -c 300)"; fi
           done
 
       # The final word: the second review when it ran, the first otherwise. Approves only on the reviewed commit.
