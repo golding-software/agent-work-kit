@@ -139,6 +139,7 @@ jobs:
       pull-requests: write
       issues: read
       id-token: write
+      actions: read   # shadow mode reads its last-reviewed-commit artifact
     steps:
       - name: Decide whether to review
         id: gate
