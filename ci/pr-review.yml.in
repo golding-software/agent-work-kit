@@ -487,19 +487,48 @@ jobs:
           done
           echo "review cost: \$$total (${parts# })" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Resolve the threads the new code fixed
+      # GITHUB_TOKEN may not resolve review threads ("Resource not accessible by integration"), the Claude App's token may. So,
+      # like the approval courier, the resolution runs as a minimal claude-code-action step whose only allowed commands are
+      # `resolve-thread.sh <id>` for the exact ids the reviewer named (validated against the open threads) and nothing else.
+      - name: Prepare the thread resolution
+        id: resprep
         if: steps.review.outcome == 'success' && steps.gate.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
           RESULT: ${{ steps.review.outputs.structured_output }}
           THREADS: ${{ runner.temp }}/threads.json
+          SCRIPT: ${{ runner.temp }}/resolve-thread.sh
         run: |
-          ids=$(jq -r --slurpfile t "$THREADS" '(.resolved // []) | map(select(. as $i | $t[0] | map(.id) | index($i))) | .[]' <<<"$RESULT" 2>/dev/null || true)
-          [ -n "$ids" ] || { echo "no earlier threads to resolve"; exit 0; }
-          for id in $ids; do
-            if out=$(gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id}}}' -f id="$id" 2>&1); then echo "resolved thread $id"
-            else echo "::warning title=Could not resolve a thread::$id: $(echo "$out" | head -c 300)"; fi
-          done
+          cat > "$SCRIPT" <<'EOS'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          [[ "${1:-}" =~ ^PRRT_[A-Za-z0-9_-]+$ ]] || { echo "resolve-thread: bad thread id" >&2; exit 2; }
+          gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id isResolved}}}' -f id="$1"
+          EOS
+          chmod +x "$SCRIPT"
+          ids=$(jq -r --slurpfile t "$THREADS" '(.resolved // []) | map(select(. as $i | $t[0] | map(.id) | index($i))) | unique | .[]' <<<"$RESULT" 2>/dev/null | grep -E '^PRRT_[A-Za-z0-9_-]+$' || true)
+          if [ -z "$ids" ]; then echo "no earlier threads to resolve"; echo "count=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          tools=""; cmds=""
+          for id in $ids; do tools="${tools:+$tools,}Bash($SCRIPT $id)"; cmds="${cmds}${SCRIPT} ${id}"$'\n'; done
+          { echo "count=$(echo "$ids" | wc -l | tr -d ' ')"; echo "tools=$tools"; echo "cmds<<EOC"; printf '%s' "$cmds"; echo "EOC"; } >> "$GITHUB_OUTPUT"
+          echo "will resolve $(echo "$ids" | wc -l | tr -d ' ') thread(s)"
+
+      - name: Resolve the threads the new code fixed
+        id: resolve
+        if: steps.resprep.outputs.count != '' && steps.resprep.outputs.count != '0'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@f27be6b65a4652f08a2ba3cff79114829b588967 # v1.0.252
+        env:
+          CLAUDE_CODE_DISABLE_CLAUDE_MDS: '1'
+        with:
+          anthropic_api_key: ${{ secrets.anthropic-api-key }}
+          claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          prompt: |
+            Run exactly these shell commands, each one unchanged, one after the other, then stop. Do not run anything else.
+            ${{ steps.resprep.outputs.cmds }}
+          claude_args: |
+            --model haiku
+            --max-turns 8
+            --allowedTools "${{ steps.resprep.outputs.tools }}"
 
       # The final word: the second review when it ran, the first otherwise. Approves only on the reviewed commit.
       - name: Final decision
