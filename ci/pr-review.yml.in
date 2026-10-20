@@ -485,7 +485,7 @@ jobs:
             c=${line% *}; t=${line#* }
             total=$(awk -v a="$total" -v b="$c" 'BEGIN{printf "%.4f", a+b}'); parts="$parts $(basename "$f" .json):\$$(awk -v b="$c" 'BEGIN{printf "%.3f", b}')/${t}t"
           done
-          echo "review cost: \$$total (${parts# })" >> "$GITHUB_STEP_SUMMARY"
+          echo "review cost: \$$total (${parts# })" | tee -a "$GITHUB_STEP_SUMMARY"
 
       # GITHUB_TOKEN may not resolve review threads ("Resource not accessible by integration"), the Claude App's token may. So,
       # like the approval courier, the resolution runs as a minimal claude-code-action step whose only allowed commands are
