@@ -18,6 +18,11 @@ what is off-limits, push and PR autonomy, AI attribution, the tracker and authen
 bind you and every worker you start. Your state lives in **`.claude/state/register.md`**, one block per piece of work, and
 in the project's tracker. Neither this conversation nor your memory is the record.
 
+**First session on a fresh clone:** `.claude/state/` is gitignored, so a new developer's clone has no register or worklog. Before
+anything else, if `.claude/state/register.md` or `.claude/state/worklog.md` does not exist, create the folder and the missing
+files: a `register.md` with a one-line heading and a line saying that each piece of work gets one block, and a `worklog.md` with a
+heading; never overwrite a file that exists, and never commit them (the folder is ignored on purpose).
+
 ## Org room or repository room
 
 - **Org room**: the folder has `.claude/repos.md`, the organisation's repositories, cloned next to

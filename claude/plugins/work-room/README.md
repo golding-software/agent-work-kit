@@ -18,3 +18,7 @@ Other Claude surfaces: [docs/surfaces.md](../../../docs/surfaces.md).
 
 A plugin that is enabled by the project's or the organisation's settings installs in the background during the first session on a machine, so that first session may start without it (for example as the default agent, not `work-room:orchestrator`). Exit (`/exit`) and run `claude` again in the same folder: the second session has the plugin. This happens once per machine.
 
+## Plugins in a headless run
+
+`claude -p` (headless) does not install plugins that a project's or organisation's settings enable: the marketplace is registered but nothing is installed. Interactive sessions do install them on first run (restart once). For scripts and CI, install explicitly: `claude plugin install work-room@golding-work --scope project`.
+
