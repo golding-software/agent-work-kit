@@ -346,6 +346,31 @@ jobs:
           echo "::error title=Ticket required::$DETAIL"
           exit 1
 
+      # The review is complete whatever the paths; but a PR that changes a path from never-approve-paths will not get the bot's
+      # approval, so say so on the PR, naming the folders, for the person who must review them. One comment, updated on every push
+      # (and reworded when a later push no longer touches those paths).
+      - name: Flag the paths that need a human review
+        if: steps.gate.outputs.skip != 'true' && !inputs.shadow && inputs.never-approve-paths != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          NEVER: ${{ inputs.never-approve-paths }}
+        run: |
+          marker="<!-- pr-review:human-review -->"; bt='`'
+          hit=""
+          while read -r p; do [ -n "$p" ] && hit="${hit:+$hit, }${bt}${p}${bt}"; done < <(grep -oE "$NEVER" "$RUNNER_TEMP/changed.txt" | sort -u)
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | contains(\"$marker\")) | .id" 2>/dev/null | tail -1 || true)
+          if [ -n "$hit" ]; then
+            body="$marker
+          **Human review needed** because of changes in these folders: $hit.
+          The bot reviews this PR in full but does not approve a PR that changes them: a person reviews the changes in those folders and approves or merges."
+          elif [ -n "$id" ]; then
+            body="$marker
+          **Human review no longer needed**: this PR no longer changes the folders that always need a person's approval."
+          else exit 0; fi
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" >/dev/null || true
+          else gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body" || true; fi
+
       - name: Review
         id: review
         if: steps.gate.outputs.skip != 'true'

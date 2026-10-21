@@ -63,6 +63,8 @@ too thin to review against is a major finding, which blocks approval: tickets co
 approves only a `ready` verdict with no blocker or major findings, on the exact commit reviewed, and
 never for changes under `.github/` (input `never-approve-paths`). Claude itself has no approve
 permission. Pair it with branch protection that dismisses stale approvals on new pushes.
+The review itself is always complete; when a PR changes a path from `never-approve-paths`, one comment on the PR (updated on every push) says
+"Human review needed because of changes in these folders: …", naming the folders, so the person who must review them knows.
 
 The plugin's two skills are for the person setting it up, and for on-demand reviews:
 
