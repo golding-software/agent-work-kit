@@ -212,6 +212,30 @@ jobs:
                && gh api "repos/$GITHUB_REPOSITORY/compare/$base...$HEAD_SHA" -H "Accept: application/vnd.github.diff" > "$RUNNER_TEMP/incremental.diff" 2>/dev/null \
                && [ -s "$RUNNER_TEMP/incremental.diff" ]; then
               mode=incremental
+              # A merge of the base branch into the PR brings other people's commits into the range. Review only what the PR's own
+              # commits changed: drop the merge commits and every commit the merge brought in (those reachable from its second
+              # parent and not from the last reviewed commit), and rebuild the diff from the remaining commits one by one.
+              # Anything that fails keeps the plain range diff above.
+              rng=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base...$HEAD_SHA" --paginate --jq '.commits[] | "\(.sha) \(.parents | length)"' 2>/dev/null || true)
+              merges=$(awk '$2 > 1 {print $1}' <<<"$rng")
+              if [ -n "$merges" ]; then
+                foreign="$RUNNER_TEMP/foreign.txt"; : > "$foreign"; ok=1
+                for m in $merges; do
+                  p2=$(gh api "repos/$GITHUB_REPOSITORY/commits/$m" --jq '.parents[1].sha' 2>/dev/null || true)
+                  if [ -z "$p2" ] || ! gh api "repos/$GITHUB_REPOSITORY/compare/$base...$p2" --paginate --jq '.commits[].sha' >> "$foreign" 2>/dev/null; then ok=0; break; fi
+                done
+                own=""; [ "$ok" = 1 ] && own=$(awk '$2 == 1 {print $1}' <<<"$rng" | grep -vxFf "$foreign" || true)
+                if [ "$ok" = 1 ] && [ -n "$own" ]; then
+                  : > "$RUNNER_TEMP/incremental.own.diff"
+                  for c in $own; do
+                    gh api "repos/$GITHUB_REPOSITORY/commits/$c" -H "Accept: application/vnd.github.diff" >> "$RUNNER_TEMP/incremental.own.diff" 2>/dev/null || { ok=0; break; }
+                  done
+                  if [ "$ok" = 1 ] && [ -s "$RUNNER_TEMP/incremental.own.diff" ]; then
+                    mv "$RUNNER_TEMP/incremental.own.diff" "$RUNNER_TEMP/incremental.diff"
+                    echo "incremental range: left out $(wc -l < "$foreign" | tr -d ' ') commit(s) that came in through a merge of the base branch; reviewing $(wc -w <<<"$own" | tr -d ' ') of the PR's own"
+                  fi
+                fi
+              fi
               lines=$(grep -cE '^[+-][^+-]' "$RUNNER_TEMP/incremental.diff" || true); files=$(grep -c '^diff --git' "$RUNNER_TEMP/incremental.diff" || true)
               echo "incremental review: ${base:0:7}..${HEAD_SHA:0:7} ($lines changed lines in $files files)"
             else
@@ -369,6 +393,7 @@ jobs:
                blocker and major findings you reported, and `findings`: the TOTAL number of findings of any
                severity (blockers, majors, minors and questions) in your inline comments and summary. Approval is decided from it by the workflow,
                not by you.
+            ${{ inputs.max-turns != '' && format('TURN BUDGET: you have at most {0} turns in all, and the limit is not exact. Stop exploring and start writing your summary once you are within 8 turns of that limit, so the result is returned before it.', inputs.max-turns) || '' }}
           claude_args: |
             --model ${{ steps.gate.outputs.model }}
             --effort ${{ steps.gate.outputs.effort }}
@@ -396,6 +421,10 @@ jobs:
           sub=$(jq -r '[.[]? | select(.type=="result")] | last | .subtype // empty' "$f" 2>/dev/null)
           msg=$(jq -r '[.[]? | select(.type=="result" and .is_error==true)] | last | .result // empty' "$f" 2>/dev/null | head -c 400)
           [ -n "$msg" ] || msg=$(jq -r '[.[]? | select(.type=="assistant")] | last | .message.content[0].text // empty' "$f" 2>/dev/null | head -c 400)
+          if [ "$sub" = success ] && [ -z "$msg" ]; then
+            echo "::warning title=Review run rejected::the model finished with a success result, but the action reported a failure (usually it ended a turn or two past --max-turns: raise max-turns); a finished verdict is recovered below when the transcript has one"
+            exit 0
+          fi
           echo "::error title=Review failed::${sub:+[$sub] }${msg:-the model call returned no result (check the API key, the credit balance and model access)}"
           case "$sub" in
             error_max_turns|error_max_budget_usd)
@@ -405,6 +434,39 @@ jobs:
           **PR review incomplete.** The reviewer stopped at its limit ($sub) before finishing, so there is no verdict and no approval. Push a smaller change, or ask for a human review." || true
               fi ;;
           esac
+
+      # claude-code-action fails a run whose last turn went over --max-turns ("reported a successful result after 42 turns,
+      # exceeding the configured maximum of 40") although the model finished and returned its result; the cap is not exact. That
+      # finished review is taken from the transcript when its result is a success carrying a structured verdict, so an overshoot of a
+      # turn or two does not discard a paid review. Anything else stays a failure.
+      - name: Recover a finished review
+        id: recover
+        if: steps.review.outcome == 'failure' && steps.gate.outputs.skip != 'true'
+        env:
+          F: ${{ steps.review.outputs.execution_file }}
+        run: |
+          f="${F:-$RUNNER_TEMP/claude-execution-output.json}"
+          [ -s "$f" ] || exit 0
+          res=$(jq -c '[.[]? | select(.type=="result")] | last | select(.subtype=="success" and (.is_error | not)) | .structured_output // empty' "$f" 2>/dev/null || true)
+          [ -n "$res" ] || exit 0
+          jq -e '.verdict != null and .findings != null' <<<"$res" >/dev/null 2>&1 || exit 0
+          echo "::notice title=Review recovered::the run was marked failed (turn cap overshoot) but the model had finished; using its result"
+          echo "result=$res" >> "$GITHUB_OUTPUT"
+
+      # One place that says whether there is a usable first review and what it said; later steps read this, not the Review step.
+      - name: First review outcome
+        id: reviewed
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          OK: ${{ steps.review.outcome == 'success' }}
+          DIRECT: ${{ steps.review.outputs.structured_output }}
+          RECOVERED: ${{ steps.recover.outputs.result }}
+        run: |
+          result=""; ok=false
+          if [ "$OK" = true ]; then ok=true; result="$DIRECT"
+          elif [ -n "$RECOVERED" ]; then ok=true; result="$RECOVERED"; fi
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          { echo "result<<PRREVIEW_EOF"; printf '%s\n' "$result"; echo "PRREVIEW_EOF"; } >> "$GITHUB_OUTPUT"
 
       - name: Keep the first review's transcript
         if: always() && steps.gate.outputs.skip != 'true'
@@ -418,7 +480,7 @@ jobs:
         id: decide
         if: steps.gate.outputs.skip != 'true' && (inputs.auto-approve || inputs.shadow)
         env:
-          RESULT: ${{ steps.review.outputs.structured_output }}
+          RESULT: ${{ steps.reviewed.outputs.result }}
           CONFIRM_MODEL: ${{ inputs.confirm-model }}
           FIRST_MODEL: ${{ steps.gate.outputs.model }}
           NEVER: ${{ inputs.never-approve-paths }}
@@ -516,9 +578,9 @@ jobs:
       # `resolve-thread.sh <id>` for the exact ids the reviewer named (validated against the open threads) and nothing else.
       - name: Prepare the thread resolution
         id: resprep
-        if: steps.review.outcome == 'success' && steps.gate.outputs.skip != 'true' && !inputs.shadow
+        if: steps.reviewed.outputs.ok == 'true' && steps.gate.outputs.skip != 'true' && !inputs.shadow
         env:
-          RESULT: ${{ steps.review.outputs.structured_output }}
+          RESULT: ${{ steps.reviewed.outputs.result }}
           THREADS: ${{ runner.temp }}/threads.json
           SCRIPT: ${{ runner.temp }}/resolve-thread.sh
         run: |
@@ -561,7 +623,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          FIRST: ${{ steps.review.outputs.structured_output }}
+          FIRST: ${{ steps.reviewed.outputs.result }}
           SECOND: ${{ steps.confirm.outputs.structured_output }}
           CONFIRMED_BY: ${{ steps.decide.outputs.confirm == 'true' && inputs.confirm-model || '' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -651,7 +713,7 @@ jobs:
       # Record the commit that was reviewed, so the next push is reviewed incrementally. Not recorded when the review did not
       # finish or the second review disagreed with the first (the next push then gets a full review).
       - name: Record the reviewed commit
-        if: steps.review.outcome == 'success' && steps.gate.outputs.skip != 'true' && !inputs.shadow && steps.final.outputs.disagreed != 'true'
+        if: steps.reviewed.outputs.ok == 'true' && steps.gate.outputs.skip != 'true' && !inputs.shadow && steps.final.outputs.disagreed != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -666,9 +728,9 @@ jobs:
 
       # Shadow mode: the review goes to the run summary and the job log (between markers), the last reviewed commit to an artifact.
       - name: Shadow report and state
-        if: inputs.shadow && steps.gate.outputs.skip != 'true' && steps.review.outcome == 'success'
+        if: inputs.shadow && steps.gate.outputs.skip != 'true' && steps.reviewed.outputs.ok == 'true'
         env:
-          FIRST: ${{ steps.review.outputs.structured_output }}
+          FIRST: ${{ steps.reviewed.outputs.result }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           report=$(jq -r '.report // empty' <<<"$FIRST" 2>/dev/null)
@@ -676,7 +738,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/shadow-state"; echo "$HEAD_SHA" > "$RUNNER_TEMP/shadow-state/sha"
 
       - name: Keep the shadow state
-        if: inputs.shadow && steps.gate.outputs.skip != 'true' && steps.review.outcome == 'success' && steps.final.outputs.disagreed != 'true'
+        if: inputs.shadow && steps.gate.outputs.skip != 'true' && steps.reviewed.outputs.ok == 'true' && steps.final.outputs.disagreed != 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pr-review-shadow-state-${{ github.event.pull_request.number }}
@@ -684,7 +746,7 @@ jobs:
           retention-days: 30
 
       - name: Fail the check when the review failed
-        if: steps.review.outcome == 'failure' && !inputs.shadow
+        if: steps.gate.outputs.skip != 'true' && steps.reviewed.outputs.ok != 'true' && !inputs.shadow
         run: |
           echo "::error title=PR review failed::the review step did not finish; see the 'Explain a failed review' step"
           exit 1
