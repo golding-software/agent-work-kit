@@ -66,6 +66,9 @@ permission. Pair it with branch protection that dismisses stale approvals on new
 **Middle gate** (`approve-max-findings: N`, default -1 = off): approve when the verdict is `ready` or `ready_after_minor_fixes`, there is no blocker or major
 finding, and the findings in all (minors and questions included) are at most N; the confirming review must meet the same bound. When set it
 replaces `approve-on-minor` (0 = only a review with no findings, like the default).
+**Open threads block approval** (`approve-requires-no-open-threads`, default true): the bot never approves while one of its own earlier review threads
+is still open: the open ones minus the ones the reviewer says the new code fixed must be zero when the decision is taken, and after the resolving
+step no thread of the bot's may be open (read live, so a failed resolve counts). Independent of the finding thresholds above.
 The workflow installs Claude Code itself with six attempts and a jittered backoff before it calls the action (the installer rate-limits
 bursts of concurrent runs with HTTP 429); if that fails too, the action tries its own install as before.
 The review itself is always complete; when a PR changes a path from `never-approve-paths`, one comment on the PR (updated on every push) says
