@@ -90,6 +90,10 @@ on:
         description: Also approve the verdict "ready after minor fixes" when it has no blocker or major findings
         type: boolean
         default: false
+      approve-max-findings:
+        description: 'Middle approval gate. Approve when the verdict is ready or ready_after_minor_fixes, there is no blocker or major finding, and the findings in all (minors and questions included) are at most this number; the confirming review must meet the same bound. -1 = off (approve-on-minor or zero findings decides). When set (0 or more) it replaces approve-on-minor.'
+        type: number
+        default: -1
       never-approve-paths:
         description: Extended regex of changed paths that always need a human approval
         type: string
@@ -510,6 +514,28 @@ jobs:
           echo "::error title=Ticket required::$DETAIL"
           exit 1
 
+      # The action installs Claude Code itself (3 attempts, 5 s apart) and a burst of concurrent runs gets HTTP 429 from the
+      # installer, which loses the review. Install it here first with a longer, jittered backoff and hand the binary to the
+      # action (path_to_claude_code_executable skips its own install). If this also fails the path is empty and the action
+      # tries on its own, so this can only help. KEEP THE VERSION EQUAL TO THE ONE PINNED IN THE ACTION (base-action/action.yml).
+      - name: Install Claude Code (with retries)
+        id: cc
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          CLAUDE_CODE_VERSION: "2.1.302"
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            echo "Claude Code $CLAUDE_CODE_VERSION: attempt $attempt"
+            if timeout --foreground --kill-after=10 180 bash -c "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION"; then
+              if [ -x "$HOME/.local/bin/claude" ] && "$HOME/.local/bin/claude" --version >/dev/null 2>&1; then
+                echo "path=$HOME/.local/bin/claude" >> "$GITHUB_OUTPUT"; echo "installed"; exit 0
+              fi
+            fi
+            [ "$attempt" = 6 ] && break
+            wait=$(( attempt * 20 + RANDOM % 15 )); echo "install failed; retrying in ${wait}s"; sleep "$wait"
+          done
+          echo "::warning title=Claude Code install failed::six attempts; the action will try its own install"
+
       # The review is complete whatever the paths; but a PR that changes a path from never-approve-paths will not get the bot's
       # approval, so say so on the PR, naming the folders, for the person who must review them. One comment, updated on every push
       # (and reworded when a later push no longer touches those paths).
@@ -546,6 +572,7 @@ jobs:
           show_full_output: ${{ inputs.show-full-output }}
           anthropic_api_key: ${{ secrets.anthropic-api-key }}
           claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          path_to_claude_code_executable: ${{ steps.cc.outputs.path }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -674,14 +701,19 @@ jobs:
           FIRST_MODEL: ${{ steps.gate.outputs.model }}
           NEVER: ${{ inputs.never-approve-paths }}
           ON_MINOR: ${{ inputs.approve-on-minor }}
+          MAXF: ${{ inputs.approve-max-findings }}
         run: |
           verdict=$(jq -r '.verdict // empty' <<<"$RESULT" 2>/dev/null); blockers=$(jq -r '.blockers // 99' <<<"$RESULT" 2>/dev/null); majors=$(jq -r '.majors // 99' <<<"$RESULT" 2>/dev/null); findings=$(jq -r '.findings // 99' <<<"$RESULT" 2>/dev/null)
           echo "first review ($FIRST_MODEL): verdict=${verdict:-none} blockers=$blockers majors=$majors findings=$findings"
           would=false
           # "ready" means no findings at all; "ready after minor fixes" counts only when approve-on-minor allows it.
           if [ "$blockers" = 0 ] && [ "$majors" = 0 ]; then
-            if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then would=true; fi
-            if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then would=true; fi
+            if [ "${MAXF:--1}" -ge 0 ] 2>/dev/null; then
+              if { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; } && [ "$findings" -le "$MAXF" ]; then would=true; fi
+            else
+              if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then would=true; fi
+              if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then would=true; fi
+            fi
           fi
           if [ "$would" = true ] && [ -n "$NEVER" ] && grep -qE "$NEVER" "$RUNNER_TEMP/changed.txt"; then
             echo "::notice title=Not approved::the PR changes a path that always needs a human approval ($NEVER)"; would=false; fi
@@ -700,6 +732,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.anthropic-api-key }}
           claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          path_to_claude_code_executable: ${{ steps.cc.outputs.path }}
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -797,6 +830,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.anthropic-api-key }}
           claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          path_to_claude_code_executable: ${{ steps.cc.outputs.path }}
           prompt: |
             Run exactly these shell commands, each one unchanged, one after the other, then stop. Do not run anything else.
             ${{ steps.resprep.outputs.cmds }}
@@ -817,6 +851,7 @@ jobs:
           CONFIRMED_BY: ${{ steps.decide.outputs.confirm == 'true' && inputs.confirm-model || '' }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           ON_MINOR: ${{ inputs.approve-on-minor }}
+          MAXF: ${{ inputs.approve-max-findings }}
           SHADOW: ${{ inputs.shadow }}
         run: |
           echo "approve=false" >> "$GITHUB_OUTPUT"
@@ -828,8 +863,12 @@ jobs:
           echo "final: ${CONFIRMED_BY:-first review} verdict=${verdict:-none} blockers=$blockers majors=$majors findings=$findings" | tee -a "$GITHUB_STEP_SUMMARY"
           ok=false
           if [ "$blockers" = 0 ] && [ "$majors" = 0 ]; then
-            if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then ok=true; fi
-            if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then ok=true; fi
+            if [ "${MAXF:--1}" -ge 0 ] 2>/dev/null; then
+              if { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; } && [ "$findings" -le "$MAXF" ]; then ok=true; fi
+            else
+              if [ "$verdict" = ready ] && [ "$findings" = 0 ]; then ok=true; fi
+              if [ "$ON_MINOR" = true ] && { [ "$verdict" = ready ] || [ "$verdict" = ready_after_minor_fixes ]; }; then ok=true; fi
+            fi
           fi
           if [ "$ok" != true ]; then
             echo "::notice title=Not approved::verdict ${verdict:-none}, $blockers blocker(s), $majors major(s), $findings finding(s)"
@@ -876,6 +915,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.anthropic-api-key }}
           claude_code_oauth_token: ${{ secrets.claude-code-oauth-token }}
+          path_to_claude_code_executable: ${{ steps.cc.outputs.path }}
           prompt: |
             Run exactly this one shell command, unchanged, then stop. Do not run anything else.
             gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews -f event=APPROVE -f commit_id=${{ steps.final.outputs.sha }} -f body=Approved-by-automated-review

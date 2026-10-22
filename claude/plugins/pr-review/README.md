@@ -63,6 +63,11 @@ too thin to review against is a major finding, which blocks approval: tickets co
 approves only a `ready` verdict with no blocker or major findings, on the exact commit reviewed, and
 never for changes under `.github/` (input `never-approve-paths`). Claude itself has no approve
 permission. Pair it with branch protection that dismisses stale approvals on new pushes.
+**Middle gate** (`approve-max-findings: N`, default -1 = off): approve when the verdict is `ready` or `ready_after_minor_fixes`, there is no blocker or major
+finding, and the findings in all (minors and questions included) are at most N; the confirming review must meet the same bound. When set it
+replaces `approve-on-minor` (0 = only a review with no findings, like the default).
+The workflow installs Claude Code itself with six attempts and a jittered backoff before it calls the action (the installer rate-limits
+bursts of concurrent runs with HTTP 429); if that fails too, the action tries its own install as before.
 The review itself is always complete; when a PR changes a path from `never-approve-paths`, one comment on the PR (updated on every push) says
 "Human review needed because of changes in these folders: …", naming the folders, so the person who must review them knows.
 
