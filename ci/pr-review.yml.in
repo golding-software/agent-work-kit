@@ -304,8 +304,13 @@ jobs:
                    | select((.comments.nodes[0].author.login // "") | test("^(claude|github-actions)(\\[bot\\])?$"))
                    | {id, path, line, outdated: .isOutdated, comment: (.comments.nodes[0].body | .[0:400])}]' > "$OUT" 2>/dev/null || echo '[]' > "$OUT"
           [ -s "$OUT" ] || echo '[]' > "$OUT"
+          # A thread is "gone" when it is outdated (its code changed) and its file is no longer part of the PR (deleted or reverted):
+          # nothing is left to fix, so the workflow resolves it itself and it does not block approval.
+          if [ -s "$RUNNER_TEMP/changed.txt" ]; then
+            jq --rawfile c "$RUNNER_TEMP/changed.txt" '($c | split("\n")) as $files | map(. + {gone: (.outdated and ((.path // "") as $p | ($files | index($p)) == null))})' "$OUT" > "$OUT.tmp" 2>/dev/null && mv "$OUT.tmp" "$OUT" || true
+          fi
           echo "open=$(jq length "$OUT")" >> "$GITHUB_OUTPUT"
-          echo "open earlier review threads: $(jq length "$OUT")"
+          echo "open earlier review threads: $(jq length "$OUT") ($(jq '[.[] | select(.gone)] | length' "$OUT" 2>/dev/null || echo 0) on files no longer in the PR)"
 
       - name: Find the ticket
         id: ticket
@@ -438,7 +443,7 @@ jobs:
                preloaded for you, so Read them when you need to cite a convention.
             3b. If OPEN EARLIER THREADS is not 0, read the threads file (each is a finding an earlier review
                raised and nobody has resolved). Decide for each, from the current code, whether the new
-               changes fixed it. Return the ids of the FIXED ones in `resolved`; a thread still open counts
+               changes fixed it (a thread whose file is no longer part of the PR is resolved by the workflow itself; for an OUTDATED thread whose code was changed or removed, resolve it when the problem it describes is gone). Return the ids of the FIXED ones in `resolved`; a thread still open counts
                toward `findings` and is mentioned in your summary. The workflow resolves the fixed ones.
             4. If SHADOW MODE is true: post NOTHING to the pull request (no comment, no inline comment, no
                `gh pr comment`); put your complete review, in the format the rubric gives (verdict first, the
@@ -561,7 +566,7 @@ jobs:
             echo "::notice title=Not approved::the PR changes a path that always needs a human approval ($NEVER)"; would=false; fi
           # A thread of the bot's that is still open blocks approval: the open ones minus the ones this review says the new code fixed.
           if [ "$would" = true ] && [ "${NO_OPEN:-true}" = true ] && [ -s "$THREADS" ]; then
-            left=$(jq -r --slurpfile t "$THREADS" '((.resolved // []) | map(select(. as $i | $t[0] | map(.id) | index($i))) | unique | length) as $r | (($t[0] | length) - $r)' <<<"$RESULT" 2>/dev/null || echo 0)
+            left=$(jq -r --slurpfile t "$THREADS" '(((.resolved // []) + ($t[0] | map(select(.gone) | .id))) | map(select(. as $i | $t[0] | map(.id) | index($i))) | unique | length) as $r | (($t[0] | length) - $r)' <<<"$RESULT" 2>/dev/null || echo 0)
             if [ "${left:-0}" -gt 0 ]; then
               echo "::notice title=Not approved::$left earlier review thread(s) of the bot are still open after this review"; would=false; fi
           fi
@@ -661,7 +666,7 @@ jobs:
           gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{id isResolved}}}' -f id="$1"
           EOS
           chmod +x "$SCRIPT"
-          ids=$(jq -r --slurpfile t "$THREADS" '(.resolved // []) | map(select(. as $i | $t[0] | map(.id) | index($i))) | unique | .[]' <<<"$RESULT" 2>/dev/null | grep -E '^PRRT_[A-Za-z0-9_-]+$' || true)
+          ids=$(jq -r --slurpfile t "$THREADS" '((.resolved // []) + ($t[0] | map(select(.gone) | .id))) | map(select(. as $i | $t[0] | map(.id) | index($i))) | unique | .[]' <<<"$RESULT" 2>/dev/null | grep -E '^PRRT_[A-Za-z0-9_-]+$' || true)
           if [ -z "$ids" ]; then echo "no earlier threads to resolve"; echo "count=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           tools=""; cmds=""
           for id in $ids; do tools="${tools:+$tools,}Bash($SCRIPT $id)"; cmds="${cmds}${SCRIPT} ${id}"$'\n'; done
