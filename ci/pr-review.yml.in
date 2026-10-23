@@ -359,6 +359,33 @@ jobs:
           echo "::error title=Ticket required::$DETAIL"
           exit 1
 
+      # With require-ticket off the review still runs without a ticket; say so on the PR (one comment, updated when a ticket
+      # appears later) so nobody mistakes a code-only review for a scope check.
+      - name: Note a missing ticket
+        if: steps.gate.outputs.skip != 'true' && !inputs.shadow && !inputs.require-ticket
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          STATUS: ${{ steps.ticket.outputs.status }}
+          FETCHED: ${{ steps.ticket.outputs.fetched }}
+          DETAIL: ${{ steps.ticket.outputs.detail }}
+        run: |
+          marker="<!-- pr-review:no-ticket -->"
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | contains(\"$marker\")) | .id" 2>/dev/null | tail -1 || true)
+          if [ "$STATUS" = ok ] && [ "${FETCHED:-0}" -gt 0 ]; then
+            [ -n "$id" ] || exit 0
+            body="$marker
+          **An issue is linked now** ($DETAIL): the review checked the scope of this PR against it."
+          elif [ "$STATUS" = none ]; then
+            body="$marker
+          **No issue number was found** in the title, the branch or the description, so the scope of this PR could not be checked against a ticket. The code itself was reviewed in full. To get the scope check, write \`Closes #<issue>\` on its own line in the description and push."
+          else
+            body="$marker
+          **The linked ticket could not be read** ($DETAIL), so the scope of this PR could not be checked against it. The code itself was reviewed in full."
+          fi
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -f body="$body" >/dev/null || true
+          else gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body" || true; fi
+
       # The action installs Claude Code itself (3 attempts, 5 s apart) and a burst of concurrent runs gets HTTP 429 from the
       # installer, which loses the review. Install it here first with a longer, jittered backoff and hand the binary to the
       # action (path_to_claude_code_executable skips its own install). If this also fails the path is empty and the action
