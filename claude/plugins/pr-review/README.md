@@ -63,6 +63,9 @@ too thin to review against is a major finding, which blocks approval: tickets co
 approves only a `ready` verdict with no blocker or major findings, on the exact commit reviewed, and
 never for changes under `.github/` (input `never-approve-paths`). Claude itself has no approve
 permission. Pair it with branch protection that dismisses stale approvals on new pushes.
+**One summary comment per PR**: the reviewer returns its summary in the result's `report`; the workflow posts it as a single comment (marker
+`<!-- pr-review:summary -->`) and edits that same comment on every push, with a footer naming the reviewed commit. The reviewer cannot run
+`gh pr comment` any more; it posts only inline comments. Older per-push comments stay as history.
 **Middle gate** (`approve-max-findings: N`, default -1 = off): approve when the verdict is `ready` or `ready_after_minor_fixes`, there is no blocker or major
 finding, and the findings in all (minors and questions included) are at most N; the confirming review must meet the same bound. When set it
 replaces `approve-on-minor` (0 = only a review with no findings, like the default).
