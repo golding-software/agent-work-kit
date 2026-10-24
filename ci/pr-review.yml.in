@@ -298,11 +298,12 @@ jobs:
         run: |
           if [ "$SHADOW" = true ]; then echo '[]' > "$OUT"; echo "open=0" >> "$GITHUB_OUTPUT"; echo "shadow: earlier threads are not triaged"; exit 0; fi
           owner="${GITHUB_REPOSITORY%%/*}"; repo="${GITHUB_REPOSITORY##*/}"
-          gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:1){nodes{author{login} body}}}}}}}' \
+          gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{id isResolved isOutdated path line comments(first:8){nodes{author{login} body}}}}}}}' \
             -f o="$owner" -f r="$repo" -F n="$PR_NUMBER" 2>/dev/null \
             | jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved|not)
                    | select((.comments.nodes[0].author.login // "") | test("^(claude|github-actions)(\\[bot\\])?$"))
-                   | {id, path, line, outdated: .isOutdated, comment: (.comments.nodes[0].body | .[0:400])}]' > "$OUT" 2>/dev/null || echo '[]' > "$OUT"
+                   | {id, path, line, outdated: .isOutdated, comment: (.comments.nodes[0].body | .[0:400]),
+                       replies: [.comments.nodes[1:][]? | {by: (.author.login // "?"), text: (.body | .[0:400])}]}]' > "$OUT" 2>/dev/null || echo '[]' > "$OUT"
           [ -s "$OUT" ] || echo '[]' > "$OUT"
           # A thread is "gone" when it is outdated (its code changed) and its file is no longer part of the PR (deleted or reverted):
           # nothing is left to fix, so the workflow resolves it itself and it does not block approval.
@@ -469,14 +470,21 @@ jobs:
                surrounding code in the checkout where you need context. Project conventions live in CLAUDE.md (and AGENTS.md): they are not
                preloaded for you, so Read them when you need to cite a convention.
             3b. If OPEN EARLIER THREADS is not 0, read the threads file (each is a finding an earlier review
-               raised and nobody has resolved). Decide for each, from the current code, whether the new
-               changes fixed it (a thread whose file is no longer part of the PR is resolved by the workflow itself; for an OUTDATED thread whose code was changed or removed, resolve it when the problem it describes is gone). Return the ids of the FIXED ones in `resolved`; a thread still open counts
+               raised and nobody has resolved). Each has `replies`: what the author or others answered in the
+               thread. Read them. Decide for each, from the current code AND the replies, whether it is settled: the new
+               changes fixed it, or a question was answered or a finding disputed with a reason you accept (resolve it and say in one line why
+               you accept the answer); if the answer is not enough, keep it open and say in one sentence what is still missing instead of
+               just listing it again (a thread whose file is no longer part of the PR is resolved by the workflow itself; for an OUTDATED thread whose code was changed or removed, resolve it when the problem it describes is gone). Return the ids of the FIXED ones in `resolved`; a thread still open counts
                toward `findings` and is mentioned in your summary. The workflow resolves the fixed ones.
             4. If SHADOW MODE is true: post NOTHING to the pull request (no comment, no inline comment, no
                `gh pr comment`); put your complete review, in the format the rubric gives (verdict first, the
                ticket scope, every finding with file:line), in the `report` field of the result. Otherwise: post
                inline comments with the inline-comment tool (at most 10, changed lines only), then ONE summary
                comment with `gh pr comment`, in the format the rubric gives.
+            4b. If two findings pull in opposite directions (a rule says to remove something that the ticket says to keep, or the
+               reverse), report ONE finding that names both sources and says who must decide (the rule owner), as a question; never post
+               a blocker and a major that contradict each other. Count findings by distinct issue: several threads about the same issue
+               are one finding.
             5. Return the structured result: the verdict you wrote in the summary, how many
                blocker and major findings you reported, and `findings`: the TOTAL number of findings of any
                severity (blockers, majors, minors and questions) in your inline comments and summary. Approval is decided from it by the workflow,
