@@ -1,0 +1,20 @@
+{
+  "name": "golding-work",
+  "description": "Claude Code plugins from Golding Software for running client work with Claude: a work room per client, and PR review that checks the change against its ticket.",
+  "owner": {
+    "name": "Golding Software",
+    "url": "https://goldingsoftware.com.au"
+  },
+  "plugins": [
+    {
+      "name": "work-room",
+      "source": "./claude/plugins/work-room",
+      "description": "A ready-to-edit Claude Code room for one client or project: an orchestrator that sizes each request, a Haiku/Sonnet/Opus worker ladder, a shared register so parallel sessions don't collide."
+    },
+    {
+      "name": "pr-review",
+      "source": "./claude/plugins/pr-review",
+      "description": "PR review that checks the change against its ticket as well as the code: a GitHub Actions workflow you install with one skill, an editable rubric, and the same review on demand in a session."
+    }
+  ]
+}

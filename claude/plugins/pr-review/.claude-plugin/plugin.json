@@ -1,0 +1,20 @@
+{
+  "name": "pr-review",
+  "displayName": "PR Review",
+  "version": "0.1.0",
+  "description": "PR review that checks the change against its ticket as well as the code: a GitHub Actions workflow you install with one skill, an editable rubric, and the same review on demand in a session.",
+  "author": {
+    "name": "Golding Software",
+    "url": "https://goldingsoftware.com.au"
+  },
+  "homepage": "https://github.com/golding-software/agent-work-kit/tree/main/claude/plugins/pr-review",
+  "repository": "https://github.com/golding-software/agent-work-kit",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "pull-request",
+    "github-actions",
+    "jira",
+    "ci"
+  ]
+}
