@@ -27,10 +27,12 @@ jobs:
       # Models (defaults shown): Haiku reviews; Sonnet confirms before any approval; large PRs go to
       # Sonnet with a read-only Haiku context-reader.
       # confirm-model: sonnet     # "" = approve on Haiku's review alone
+      # confirm-loads-claude-md: true   # false = the confirm reads CLAUDE.md on demand (cheaper when CLAUDE.md is large)
       # large-model: sonnet
       # large-min-lines: 400
       # large-min-files: 15
       # approve-on-minor: false   # true = also approve "ready after minor fixes" (no blocker/major)
+      # approve-with-open-minor-threads: false   # true = open minor/question threads of the bot do not block approval (listed with it)
       # jira-projects: "KAN"      # Jira project keys found anywhere in the title, body or branch
       # max-budget-usd: "5"       # hard cap per review (default 5)
       jira-base-url: {{JIRA_BASE_URL}}
