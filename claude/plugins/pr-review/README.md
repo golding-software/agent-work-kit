@@ -72,6 +72,15 @@ replaces `approve-on-minor` (0 = only a review with no findings, like the defaul
 **Open threads block approval** (`approve-requires-no-open-threads`, default true): the bot never approves while one of its own earlier review threads
 is still open: the open ones minus the ones the reviewer says the new code fixed must be zero when the decision is taken, and after the resolving
 step no thread of the bot's may be open (read live, so a failed resolve counts). Independent of the finding thresholds above.
+**CLAUDE.md in the confirm** (`confirm-loads-claude-md`, default true): the confirming review loads the repository's CLAUDE.md files, like the
+large tier. Set it false where CLAUDE.md is large: it is written to the prompt cache and re-read on every turn, so a CLAUDE.md of ~130K tokens
+made up most of a Sonnet confirm's cost ($0.38 fixed plus $0.04 a turn, against $0.01 plus $0.01 without one). The confirm then reads it on
+demand, as the first review already does.
+**Only blocker and major threads block** (`approve-with-open-minor-threads: true`, default false = every open thread blocks): an open thread
+blocks approval only when its finding was a blocker or a major, read from the severity that leads the bot's comment (`**minor:**`,
+`**question:**`, `**major:**`); a thread with no recognisable severity still blocks. The open minor and question threads are listed with the
+approval (in the review body, or in a comment right after it with `approval-identity: app`), so nobody loses them. Use it where answered but
+unresolved minor threads keep PRs from approval; the finding thresholds above still apply to the review itself.
 The workflow installs Claude Code itself with six attempts and a jittered backoff before it calls the action (the installer rate-limits
 bursts of concurrent runs with HTTP 429); if that fails too, the action tries its own install as before.
 The review itself is always complete; when a PR changes a path from `never-approve-paths`, one comment on the PR (updated on every push) says
