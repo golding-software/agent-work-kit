@@ -1,7 +1,7 @@
 {
   "name": "acme-conventions",
   "displayName": "Acme conventions",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "Acme's layer on the generic work room: how Acme uses its tracker, wiki and environments. Installing it installs and keeps current golding-work/work-room.",
   "author": {
     "name": "Acme"
