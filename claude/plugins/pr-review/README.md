@@ -3,7 +3,7 @@
 PR review that checks the change against its ticket as well as the code, approving clean PRs.
 
 **Nobody needs to install this plugin for CI.** The review runs as a shared GitHub Actions workflow
-in this repository, [`.github/workflows/pr-review.yml`](../../.github/workflows/pr-review.yml); a
+in this repository, [`.github/workflows/pr-review.yml`](../../../.github/workflows/pr-review.yml); a
 client repository calls it with a short caller file pinned to a version tag:
 
 ```yaml
@@ -38,7 +38,26 @@ the commits since the last review, and an `@claude review` comment trigger.
 
 **Jira with a service-account token.** An Atlassian service-account token is a Bearer token and the site URL (`https://<site>.atlassian.net`) answers it with 403. Set `jira-base-url` to the gateway `https://api.atlassian.com/ex/jira/<cloud id>` and leave `jira-email` unset: the ticket step then uses Bearer (tested against a real project, 2026-10-20).
 
-**API credit.** The review runs Claude Code through `claude-code-action`. On a new Anthropic Console organisation the free promotional credit (for example the US$200 that comes with a Team plan) may be refused for it: the review step then fails after a fraction of a second with "Credit balance is too low" while the same key still works for a plain `claude -p` call from a terminal. Buy a small amount of purchased credit on the Console organisation (a few dollars lasts for hundreds of reviews), or use a Claude Code OAuth token (`claude-code-oauth-token`) from a plan that includes Claude Code. The workflow prints the API error line when the review step fails; for the full output set `show-full-output: true` for one debugging run.
+**API credit.** The review runs Claude Code through `claude-code-action`. On a new Anthropic Console organisation the free promotional credit (for example the US$200 that comes with a Team plan) may be refused for it: the review step then fails after a fraction of a second with "Credit balance is too low" while the same key still works for a plain `claude -p` call from a terminal. Buy a small amount of purchased credit on the Console organisation (a few dollars lasts for hundreds of reviews), or use a Claude Code OAuth token (`claude-code-oauth-token`) from a plan that includes Claude Code, or `engine: api` (below), which calls the Claude API directly and is not Claude Code. The workflow prints the API error line when the review step fails; for the full output set `show-full-output: true` for one debugging run.
+
+**Engine `api`** (`engine: api`; default `claude`). The same review on the Claude API through the Anthropic Python SDK, with no Claude Code,
+no Bun and no Claude GitHub App: [`ci/api_review.py`](../../../ci/api_review.py), inlined into the workflow with its hash-pinned
+requirements ([`ci/api-review-requirements.txt`](../../../ci/api-review-requirements.txt)). It needs the `anthropic-api-key` secret (an API
+key; a subscription OAuth token does not work) and `approval-identity: github-token`. Differences from `claude`:
+- The model reads the checkout through three read-only tools, `read_file`, `grep` (git grep) and `list_dir`, confined to the
+  checkout (`.git` excluded, symlinks out of it refused); it has no shell, no network and no GitHub access. The workflow gives it
+  the diff, the ticket, the PR text and the earlier threads in its first message (cached, with every later turn), and posts what
+  it returns: the summary as usual, the inline comments as one review from `github-actions[bot]`, checked against the diff first
+  (a comment off the diff moves into the summary). The severity label that leads each comment is written by the workflow.
+- The large tier uses `large-model` with the same tools; there is no `context-reader` subagent. `first-review-loads-claude-md`
+  and `confirm-loads-claude-md` put the root `CLAUDE.md`, `.claude/CLAUDE.md` and `AGENTS.md` into the cached first message.
+- `max-turns` counts API calls; at the limit the tools close and the model gets two more calls to return its result.
+  `max-budget-usd` is checked after every call from the token counts at list price (Haiku 5.5's long-prompt price above 100K
+  tokens included). `effort` is the API's effort; thinking is adaptive (the default).
+- Thread resolution: the workflow token resolves the threads the new code fixed. Where GitHub refuses that, the workflow replies on
+  the thread with a marker (`<!-- pr-review:fixed sha=… -->`), and the thread steps treat a thread whose last comment is that
+  marker as settled (a later reply reopens it; with engine `claude` the marker is never written).
+- The cost line and the failure messages are the same; refusal fallbacks are not used.
 
 **Prompt injection.** The diff, the PR text and the ticket are untrusted input to a model that can
 comment and approve. The reviewer is told to treat them as data and the workflow decides the approval
