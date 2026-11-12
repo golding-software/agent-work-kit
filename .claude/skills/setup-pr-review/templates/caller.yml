@@ -21,7 +21,7 @@ jobs:
   pr-review:
     uses: golding-software/agent-work-kit/.github/workflows/pr-review.yml@{{VERSION}}
     with:
-      engine: claude                # the only engine implemented today
+      engine: {{ENGINE}}                # claude = Claude Code (default); api = the Claude API with an API key only (no Claude App)
       model: {{MODEL}}                # first reviewer (default haiku)
       auto-approve: {{AUTO_APPROVE}}
       # Models (defaults shown): Haiku reviews; Sonnet confirms before any approval; large PRs go to

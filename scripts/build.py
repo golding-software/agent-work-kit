@@ -15,8 +15,9 @@ checks the rules every surface shares:
   3. agents     claude/plugins/*/agents/*.md -> managed-agents/agents/<name>/agent.md (+ environment.yaml),
                 the files `ant apply` turns into Managed Agents: the orchestrator as a coordinator
                 with its workers as the roster.
-  4. workflow   ci/pr-review.yml.in + ci/fetch-ticket.sh + the review-pr rubric ->
-                .github/workflows/pr-review.yml, the shared (workflow_call) PR review.
+  4. workflow   ci/pr-review.yml.in + ci/fetch-ticket.sh + the review-pr rubric + ci/api_review.py and
+                ci/api-review-requirements.txt (engine: api) -> .github/workflows/pr-review.yml, the shared
+                (workflow_call) PR review.
   5. --zip      dist/skills/<name>.zip for the Skills API console upload or claude.ai.
 
 Usage: scripts/build.py            write everything
@@ -164,7 +165,21 @@ def build_workflow():
     rubric = (SKILLS / "review-pr" / "rubric.md").read_text()
     if "RUBRIC_EOF" in rubric:
         errors.append("rubric.md must not contain the line RUBRIC_EOF")
-    return tpl.replace("@@FETCH_TICKET@@", indent(script)).replace("@@RUBRIC@@", indent(rubric))
+    # engine: api. The reviewer script and its hash-pinned requirements go into the workflow as heredocs, so the caller
+    # needs nothing from this repository at run time. Inside a `run:` block, `${{` would be read as an expression.
+    api = (ROOT / "ci" / "api_review.py").read_text()
+    reqs = (ROOT / "ci" / "api-review-requirements.txt").read_text()
+    for name, text, eof in (("ci/api_review.py", api, "PY_EOF"), ("ci/api-review-requirements.txt", reqs, "REQ_EOF")):
+        if eof in text:
+            errors.append(f"{name} must not contain {eof}")
+        if "${{" in text:
+            errors.append(f"{name} must not contain '${{{{' (GitHub would expand it inside the workflow)")
+    loose = [l for l in reqs.splitlines() if l and not l[0].isspace() and not l.startswith("#")
+             and not re.fullmatch(r"[A-Za-z0-9_.-]+==[^\s;]+ \\", l)]
+    if loose or "--hash=sha256:" not in reqs:
+        errors.append(f"ci/api-review-requirements.txt must pin every package with == and its hashes ({loose[:3]})")
+    return (tpl.replace("@@FETCH_TICKET@@", indent(script)).replace("@@RUBRIC@@", indent(rubric))
+            .replace("@@API_REVIEW@@", indent(api)).replace("@@API_REQUIREMENTS@@", indent(reqs)))
 
 
 def same_tree(a, b):

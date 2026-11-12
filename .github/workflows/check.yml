@@ -12,6 +12,8 @@ jobs:
         run: python3 scripts/build.py --check
       - name: Skill tests
         run: python3 -m unittest discover -s skills/sync-repos/tests -q
+      - name: API reviewer tests (engine api)
+        run: python3 -m unittest discover -s ci/tests -q
       - name: Org guard tests
         run: python3 -m unittest discover -s claude/org-guard/tests -q
       - name: fetch-ticket.sh parses

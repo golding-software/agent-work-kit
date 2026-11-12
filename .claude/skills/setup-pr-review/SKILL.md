@@ -19,8 +19,11 @@ existing file and show the difference.
 
 ## 2. Ask (one message; `AskUserQuestion` where it exists, otherwise a numbered list)
 
-1. **Claude credential for CI**: the organisation's Anthropic API key (secret `ANTHROPIC_API_KEY`,
-   billed to its Console account) [default], or a subscription token (`CLAUDE_CODE_OAUTH_TOKEN`).
+1. **Claude credential and engine for CI**: the organisation's Anthropic API key (secret
+   `ANTHROPIC_API_KEY`, billed to its Console account) with engine `claude` (Claude Code) [default];
+   a subscription token (`CLAUDE_CODE_OAUTH_TOKEN`) with engine `claude`; or the API key with engine
+   `api` (the Claude API directly: no Claude Code and no Claude GitHub App; for Console credit that
+   does not cover Claude Code, or a repository where the App cannot be installed).
 2. **Ticket context**: GitHub issues (the PR body says `Closes #12`) [default], or Jira (the site
    URL; an account email and API token become secrets).
 3. **Auto-approve** when the verdict is "ready" with no blocker or major findings [yes; choose no
@@ -35,7 +38,7 @@ existing file and show the difference.
 
 ## 3. Write the files
 
-- `templates/caller.yml` → `.github/workflows/pr-review.yml`, replacing `{{VERSION}}`, `{{MODEL}}`,
+- `templates/caller.yml` → `.github/workflows/pr-review.yml`, replacing `{{VERSION}}`, `{{ENGINE}}` (`claude` or `api`), `{{MODEL}}`,
   `{{AUTO_APPROVE}}` and `{{REQUIRE_TICKET}}` (`true`/`false`), `{{JIRA_BASE_URL}}`; uncomment the tier lines the user
   changed (the URL, or `""` for GitHub issues
   only) and `{{AUTH_SECRET}}` with `anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}` or
@@ -50,8 +53,8 @@ existing file and show the difference.
 Credentials belong to the organisation: never ask for a key or token value, never set a secret
 yourself. Give these as commands to run:
 
-1. Install the Claude GitHub App on the repository: https://github.com/apps/claude (or
-   `/install-github-app` in Claude Code).
+1. Engine `claude` only: install the Claude GitHub App on the repository: https://github.com/apps/claude
+   (or `/install-github-app` in Claude Code). Engine `api` needs no App, only the API key secret.
 2. Secrets: `gh secret set ANTHROPIC_API_KEY` (or `CLAUDE_CODE_OAUTH_TOKEN`); for Jira also
    `gh secret set JIRA_EMAIL` and `gh secret set JIRA_API_TOKEN`.
 3. For auto-approve: Settings → Actions → General → **Allow GitHub Actions to create and approve
