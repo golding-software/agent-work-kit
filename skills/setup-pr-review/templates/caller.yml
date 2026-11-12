@@ -12,6 +12,7 @@ permissions:
   pull-requests: write
   issues: read
   id-token: write
+  actions: read      # the shared workflow's job asks for it (shadow mode reads its state artifact); a caller must grant it
 
 concurrency:
   group: pr-review-${{ github.event.pull_request.number }}
