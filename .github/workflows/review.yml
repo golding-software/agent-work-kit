@@ -22,7 +22,7 @@ concurrency:
 jobs:
   pr-review:
     if: github.event.pull_request.head.repo.full_name == github.repository   # same-repository PRs only (see above)
-    uses: golding-software/agent-work-kit/.github/workflows/pr-review.yml@v1.1.0
+    uses: golding-software/agent-work-kit/.github/workflows/pr-review.yml@v1.2.1
     with:
       caller-workflow-path: .github/workflows/review.yml   # this file (pr-review.yml here is the shared workflow itself)
       engine: api                   # the Claude API with an API key only (no Claude Code, no Claude App)
