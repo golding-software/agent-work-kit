@@ -1,0 +1,35 @@
+# PR review for this repository: it calls its own shared workflow (.github/workflows/pr-review.yml),
+# pinned to a release tag, so a PR can never change the reviewer that reviews it.
+# Fork PRs are not reviewed here: GitHub gives a pull_request run from a fork no secrets (so no API
+# key), and this repository never uses pull_request_target. A maintainer reviews those by hand.
+name: PR review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+  id-token: write
+  actions: read      # the shared workflow's job asks for it
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-review:
+    if: github.event.pull_request.head.repo.full_name == github.repository   # same-repository PRs only (see above)
+    uses: golding-software/agent-work-kit/.github/workflows/pr-review.yml@v1.1.0
+    with:
+      caller-workflow-path: .github/workflows/review.yml   # this file (pr-review.yml here is the shared workflow itself)
+      engine: api                   # the Claude API with an API key only (no Claude Code, no Claude App)
+      model: haiku                  # first reviewer
+      auto-approve: false           # public repository: the main ruleset needs a code-owner approval, and Actions may not approve PRs here
+      effort: medium
+      jira-base-url: ""
+      require-ticket: false         # every PR is reviewed; one comment notes when no issue was found
+    secrets:
+      anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
