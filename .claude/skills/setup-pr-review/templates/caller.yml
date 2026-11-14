@@ -36,6 +36,7 @@ jobs:
       # approve-with-open-minor-threads: false   # true = open minor/question threads of the bot do not block approval (listed with it)
       # jira-projects: "KAN"      # Jira project keys found anywhere in the title, body or branch
       # max-budget-usd: "5"       # hard cap per review (default 5)
+      # cost-in-comment: true   # false = the review cost stays in the run summary, not the PR comment
       jira-base-url: {{JIRA_BASE_URL}}
       require-ticket: {{REQUIRE_TICKET}}
     secrets:
