@@ -11,6 +11,12 @@ A Claude Code room for one client or project.
 - **Worker ladder**: `implementer` (one ticket, end to end), `worker-haiku`, `worker-sonnet`,
   `worker-opus`. The rule: the cheapest rung whose result is cheap to check, never a rung above the
   orchestrator's own model, and escalate one rung on a failed review with the failed attempt attached.
+- **`/work-room:resume-topic KEY`**: picks a topic up in a fresh session from its register block's
+  `RESUME:` header and resume file, after checking the PRs, branches and worktrees they name
+  ([docs/resume.md](../../../docs/resume.md)).
+- **Context-size check** (hook, off by default): one reminder per session when the context gets large,
+  to hand the topic off. Turn it on with `"env": {"WORK_ROOM_CONTEXT_GUARD": "on"}` in the room's
+  `.claude/settings.json`.
 
 Other Claude surfaces: [docs/surfaces.md](../../../docs/surfaces.md).
 

@@ -1,7 +1,7 @@
 {
   "name": "work-room",
   "displayName": "Work Room",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A ready-to-edit Claude Code room for one client or project: an orchestrator that sizes each request, a Haiku/Sonnet/Opus worker ladder, a shared register so parallel sessions don't collide.",
   "author": {
     "name": "Golding Software",

@@ -1,0 +1,27 @@
+{
+  "description": "Optional context-size check for work rooms. Off unless the room sets WORK_ROOM_CONTEXT_GUARD to on in .claude/settings.json; see docs/resume.md.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context_guard.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/context_guard.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
