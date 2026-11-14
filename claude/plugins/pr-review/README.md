@@ -58,6 +58,12 @@ key; a subscription OAuth token does not work) and `approval-identity: github-to
 - Thread resolution: the workflow token resolves the threads the new code fixed. Where GitHub refuses that, the workflow replies on
   the thread with a marker (`<!-- pr-review:fixed sha=… -->`), and the thread steps treat a thread whose last comment is that
   marker as settled (a later reply reopens it; with engine `claude` the marker is never written).
+- A branch rule that requires conversation resolution still counts a settled thread as open. Use the `threads-settled` check
+  instead: [`.github/workflows/threads-settled.yml`](../../../.github/workflows/threads-settled.yml), caller template
+  `templates/threads-settled.yml`, required check `threads-settled / check`.
+- It passes when every open, non-outdated thread is resolved, or ends in the marker for the head commit or for a commit the
+  review has recorded since. Otherwise it fails and lists the threads.
+- A thread resolved by hand does not re-run it.
 - The cost line and the failure messages are the same; refusal fallbacks are not used.
 
 **Prompt injection.** The diff, the PR text and the ticket are untrusted input to a model that can

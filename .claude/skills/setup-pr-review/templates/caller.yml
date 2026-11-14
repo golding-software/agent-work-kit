@@ -37,6 +37,7 @@ jobs:
       # jira-projects: "KAN"      # Jira project keys found anywhere in the title, body or branch
       # max-budget-usd: "5"       # hard cap per review (default 5)
       # cost-in-comment: true   # false = the review cost stays in the run summary, not the PR comment
+      # Optional companion: threads-settled.yml (same kit) is a required check that counts the review's settled replies as resolved
       jira-base-url: {{JIRA_BASE_URL}}
       require-ticket: {{REQUIRE_TICKET}}
     secrets:
