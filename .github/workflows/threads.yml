@@ -1,0 +1,26 @@
+# Required check for main: every open review thread is resolved, or ends in the PR review's settled reply
+# (.github/workflows/threads-settled.yml). It runs on every PR event that can change a thread: a push, a review,
+# a review comment. A thread resolved by hand does not start it: re-run the check, or push.
+name: Threads settled
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+
+permissions:
+  pull-requests: read
+  actions: read      # to wait for the PR review run on the same commit
+
+concurrency:
+  group: threads-settled-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  threads-settled:
+    if: github.event.pull_request.base.ref == 'main'
+    uses: ./.github/workflows/threads-settled.yml

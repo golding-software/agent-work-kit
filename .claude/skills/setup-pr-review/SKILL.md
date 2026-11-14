@@ -47,6 +47,7 @@ existing file and show the difference.
 - Only if a tailored rubric was asked for: `templates/rubric.md` → `.github/pr-review/rubric.md`,
   adapted to the repo's language, test framework and the mistakes its team cares about; keep its
   section headings and its rules section.
+- Optional, with engine `api` when the default branch requires conversation resolution: `templates/threads-settled.yml` → `.github/workflows/threads-settled.yml`, replacing `{{VERSION}}`.
 
 ## 4. Settings only the repository admin can apply
 
@@ -62,7 +63,7 @@ yourself. Give these as commands to run:
    can_approve_pull_request_reviews=true`).
 4. Branch protection (or a ruleset) on the default branch: require a pull request; require the
    status check **pr-review / review**; **dismiss stale approvals when new commits are pushed**; and
-   decide whether a human approval is also required (the automated approval counts as one).
+   decide whether a human approval is also required (the automated approval counts as one). With `threads-settled.yml` (optional, §3), require the check **threads-settled / check** and turn off "require conversation resolution": a settled reply then counts as resolved.
 5. Merge the caller workflow first: a PR that edits it skips its own review, because the Claude App
    only runs a workflow that matches the default branch.
 

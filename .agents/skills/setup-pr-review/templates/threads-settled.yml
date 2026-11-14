@@ -1,0 +1,26 @@
+# OPTIONAL companion to the PR review (engine api), from github.com/golding-software/agent-work-kit. Use it when the
+# default branch requires conversation resolution: that setting still counts the review's settled replies as open.
+# This check passes when every open, non-outdated thread is resolved or ends in the review's settled reply, and it
+# replaces "Require conversation resolution" in the branch rule. Its required check is "threads-settled / check".
+# Pin the same version tag as pr-review.yml; move it forward to get updates.
+name: Threads settled
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+
+permissions:
+  pull-requests: read
+  actions: read      # to wait for the PR review run on the same commit
+
+concurrency:
+  group: threads-settled-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  threads-settled:
+    uses: golding-software/agent-work-kit/.github/workflows/threads-settled.yml@{{VERSION}}

@@ -17,7 +17,8 @@ checks the rules every surface shares:
                 with its workers as the roster.
   4. workflow   ci/pr-review.yml.in + ci/fetch-ticket.sh + the review-pr rubric + ci/api_review.py and
                 ci/api-review-requirements.txt (engine: api) -> .github/workflows/pr-review.yml, the shared
-                (workflow_call) PR review.
+                (workflow_call) PR review; ci/threads-settled.yml.in + ci/threads_settled.py ->
+                .github/workflows/threads-settled.yml, the threads-settled check (workflow_call).
   5. --zip      dist/skills/<name>.zip for the Skills API console upload or claude.ai.
 
 Usage: scripts/build.py            write everything
@@ -38,6 +39,7 @@ SKILL_PLUGIN = {"setup-work-room": "work-room", "sync-repos": "work-room",
 MIRRORS = {".claude/skills": ROOT / ".claude" / "skills", ".agents/skills": ROOT / ".agents" / "skills"}
 MA = ROOT / "managed-agents" / "agents"
 WORKFLOW = ROOT / ".github" / "workflows" / "pr-review.yml"
+THREADS_WORKFLOW = ROOT / ".github" / "workflows" / "threads-settled.yml"
 SKIP = {"tests", "__pycache__", ".pytest_cache"}
 SAME = [  # files kept identical in two skills, because each skill must be self-contained
     ("skills/review-pr/rubric.md", "skills/setup-pr-review/templates/rubric.md"),
@@ -159,8 +161,23 @@ def build_agents(out):
                 "config: {type: cloud, networking: {type: limited, allow_package_managers: true, allowed_hosts: []}}\n")
 
 
+def indent(text):
+    """Indent a script into a workflow's `run:` block (10 spaces); blank lines stay blank."""
+    return "\n".join(("          " + l) if l.strip() else "" for l in text.rstrip("\n").splitlines())
+
+
+def build_threads_workflow():
+    tpl = (ROOT / "ci" / "threads-settled.yml.in").read_text()
+    script = (ROOT / "ci" / "threads_settled.py").read_text()
+    # The script goes into a quoted heredoc (TS_EOF) inside a run: block, where ${{ would be read as an expression.
+    if "TS_EOF" in script:
+        errors.append("ci/threads_settled.py must not contain TS_EOF")
+    if "${{" in script:
+        errors.append("ci/threads_settled.py must not contain '${{' (GitHub would expand it inside the workflow)")
+    return tpl.replace("@@THREADS_SETTLED@@", indent(script))
+
+
 def build_workflow():
-    indent = lambda text: "\n".join(("          " + l) if l.strip() else "" for l in text.rstrip("\n").splitlines())
     tpl = (ROOT / "ci" / "pr-review.yml.in").read_text()
     script = (ROOT / "ci" / "fetch-ticket.sh").read_text().split("\n", 1)[1]   # drop the shebang
     rubric = (SKILLS / "review-pr" / "rubric.md").read_text()
@@ -216,12 +233,16 @@ def main():
                     shutil.rmtree(target)
                 shutil.copytree(built, target)
     wf = build_workflow()
+    threads_wf = build_threads_workflow()
     if check:
         if not WORKFLOW.exists() or WORKFLOW.read_text() != wf:
             errors.append(".github/workflows/pr-review.yml is stale: run scripts/build.py")
+        if not THREADS_WORKFLOW.exists() or THREADS_WORKFLOW.read_text() != threads_wf:
+            errors.append(".github/workflows/threads-settled.yml is stale: run scripts/build.py")
     else:
         WORKFLOW.parent.mkdir(parents=True, exist_ok=True)
         WORKFLOW.write_text(wf)
+        THREADS_WORKFLOW.write_text(threads_wf)
     if zips and not errors:
         dist = ROOT / "dist" / "skills"
         dist.mkdir(parents=True, exist_ok=True)
