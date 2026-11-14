@@ -5,6 +5,7 @@ single "Review cost" line under MARK, after the summary body. A later call repla
 leaves one cost line, the newer one. Standard library only.
 """
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -12,16 +13,18 @@ MARK = "<!-- pr-review:cost -->"
 
 
 def read_parts(text):
-    """Parse "<stage> <usd>" lines; blank and unparsable lines are skipped. Returns [(stage, usd)] in the given order."""
+    """Parse "<stage> <usd>" lines; blank, unparsable, negative and non-finite (nan, inf) lines are skipped. Returns [(stage, usd)] in the given order."""
     parts = []
     for line in text.splitlines():
         fields = line.split()
         if len(fields) != 2:
             continue
         try:
-            parts.append((fields[0], float(fields[1])))
+            usd = float(fields[1])
         except ValueError:
             continue
+        if math.isfinite(usd) and usd >= 0:
+            parts.append((fields[0], usd))
     return parts
 
 

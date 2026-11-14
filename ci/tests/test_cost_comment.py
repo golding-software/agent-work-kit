@@ -21,6 +21,12 @@ class PartsTests(unittest.TestCase):
         self.assertEqual(cc.read_parts("2-confirm 0.5\n1-review 0.1\n"), [("2-confirm", 0.5), ("1-review", 0.1)])
 
 
+    def test_nan_inf_and_negative_values_are_skipped(self):
+        text = "1-review nan\n2-confirm inf\n3-x -inf\n4-y -0.5\n5-ok 0.002\n"
+        self.assertEqual(cc.read_parts(text), [("5-ok", 0.002)])
+        self.assertEqual(cc.format_line(cc.read_parts("1-review nan\n")), "Review cost: not recorded for this run")
+
+
 class FormatTests(unittest.TestCase):
     def test_two_parts(self):
         self.assertEqual(cc.format_line([("1-review", 0.0013), ("2-confirm", 0.011)]),
