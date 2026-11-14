@@ -1,7 +1,7 @@
 {
   "name": "pr-review",
   "displayName": "PR Review",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "PR review that checks the change against its ticket as well as the code: a GitHub Actions workflow you install with one skill, an editable rubric, and the same review on demand in a session.",
   "author": {
     "name": "Golding Software",

@@ -181,7 +181,7 @@ inside it, and merge the files it writes. Sessions opened in the org room don't 
 ## 7. After rollout
 
 - The generic room updates by itself (auto-update on the `golding-work` marketplace). Pin a version
-  instead with `"version": "~1.1"` on the conventions plugin's dependency (the plugin versions follow the kit's release tags since v1.1.0).
+  instead with `"version": "~1.2"` on the conventions plugin's dependency (the plugin versions follow the kit's release tags since v1.1.0).
 - The review updates when a repository's caller moves to a newer tag.
 - Review usage monthly: Claude Code analytics in the admin console, and the Console's usage page for
   the CI key.

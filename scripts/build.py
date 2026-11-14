@@ -33,7 +33,8 @@ SKILLS = ROOT / "skills"
 PLUGINS = ROOT / "claude" / "plugins"
 # Which Claude plugin ships which skill.
 SKILL_PLUGIN = {"setup-work-room": "work-room", "sync-repos": "work-room",
-                "setup-pr-review": "pr-review", "review-pr": "pr-review"}
+                "setup-pr-review": "pr-review", "review-pr": "pr-review",
+                "resume-topic": "work-room"}
 MIRRORS = {".claude/skills": ROOT / ".claude" / "skills", ".agents/skills": ROOT / ".agents" / "skills"}
 MA = ROOT / "managed-agents" / "agents"
 WORKFLOW = ROOT / ".github" / "workflows" / "pr-review.yml"
@@ -47,7 +48,7 @@ SAME = [  # files kept identical in two skills, because each skill must be self-
 MODELS = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
 AGENTS = {
     "work-room": dict(src="work-room/agents/orchestrator.md", model="opus",
-                      skills=["setup-work-room", "sync-repos", "review-pr"],
+                      skills=["setup-work-room", "sync-repos", "review-pr", "resume-topic"],
                       roster=["implementer", "worker-haiku", "worker-sonnet"], environment=True),
     "implementer": dict(src="work-room/agents/implementer.md", model="sonnet"),
     "worker-sonnet": dict(src="work-room/agents/worker-sonnet.md", model="sonnet"),

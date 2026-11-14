@@ -61,7 +61,8 @@ report the files, never `--force`.
    verify, delete nothing and say what blocked you.
 2. Remove the worktree if it still exists (never `--force` on a dirty tree).
 3. Delete the local branch (`git branch -D`, safe only after step 1).
-4. Append the item to `.claude/state/worklog.md`, then remove its register block.
+4. Append the item to `.claude/state/worklog.md`, then remove its register block and its resume file, if
+   there is one.
 
 ## Tickets
 
@@ -78,6 +79,22 @@ Before implementation, a PR or an incident response on a ticket, in this order:
 
 If any shows another session on it, stop and say so in one line. If all are clear, **write your
 register block first** (`status: investigating`), then start. The block *is* the claim.
+
+## Hand-off: the RESUME header and the resume file
+
+- Every block starts with the `RESUME:` header (format in `.claude/state/register.md`). Rewrite it after
+  every step. Append history lines below it, never rewrite them.
+- When a session must stop with the work unfinished, it also writes `.claude/state/resume/<KEY>.md`.
+  Examples: its context is large, the user asks for a fresh session, or the machine is going down. The
+  file is a ready-to-paste prompt with five parts:
+  - which block to read;
+  - what is done;
+  - the next action;
+  - what to verify before trusting the register (PRs, branches, worktrees, running workers);
+  - open questions.
+- A fresh session picks the topic up with the `resume-topic` skill (`/work-room:resume-topic <KEY>` in
+  Claude Code), or by pasting the file.
+- The resume file is replaced at each hand-off, and deleted with the block when the work is done.
 
 ## Out-of-scope discoveries: fix small, ticket big
 

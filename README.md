@@ -4,7 +4,7 @@ Two plugins for doing client work with Claude, from the setup we run at our own 
 
 | Plugin | What it gives you |
 |---|---|
-| [**work-room**](claude/plugins/work-room) | One room per client or project: an orchestrator that sizes each request and runs the lightest loop that fits, a Haiku/Sonnet/Opus worker ladder, a shared register so parallel sessions don't collide, and rules you own in `AGENTS.md`. |
+| [**work-room**](claude/plugins/work-room) | One room per client or project: an orchestrator that sizes each request and runs the lightest loop that fits, a Haiku/Sonnet/Opus worker ladder, a shared register so parallel sessions don't collide, and rules you own in `AGENTS.md`. Topics resume in a fresh session ([how](docs/resume.md)). |
 | [**pr-review**](claude/plugins/pr-review) | PR review that checks the change against its **ticket** (Jira or GitHub issue) as well as the code, and approves clean PRs: every requirement marked met, partly met or not met, out-of-scope changes flagged, findings with severity and line. A shared GitHub Actions workflow any repository calls by version tag, plus an on-demand skill. |
 
 ## Install (Claude Code)

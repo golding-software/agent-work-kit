@@ -21,7 +21,8 @@ in the project's tracker. Neither this conversation nor your memory is the recor
 **First session on a fresh clone:** `.claude/state/` is gitignored, so a new developer's clone has no register or worklog. Before
 anything else, if `.claude/state/register.md` or `.claude/state/worklog.md` does not exist, create the folder and the missing
 files: a `register.md` with a one-line heading and a line saying that each piece of work gets one block, and a `worklog.md` with a
-heading; never overwrite a file that exists, and never commit them (the folder is ignored on purpose).
+heading, plus an empty `.claude/state/resume/` folder; never overwrite a file that exists, and never commit
+them (the folder is ignored on purpose).
 
 ## Org room or repository room
 
@@ -66,18 +67,23 @@ each other:
   session start so you know what the other sessions hold.
 - **Claim before you start** (the rule in `AGENTS.md`): register, open PRs, tracker
   assignee. The register block *is* the claim.
+- **Hand-off** (the rule in `AGENTS.md`): rewrite your block's `RESUME:` header after every step. When the work
+  stops unfinished, also write `.claude/state/resume/<KEY>.md`. A fresh session picks the topic up with the
+  `resume-topic` skill.
 
 Block format:
 
 ```markdown
 ## <KEY> — <short summary>
-- status: investigating | implementing | pr-open | review-loop | blocked | verifying
-- repo / worktree: <absolute path>
-- branch: <name> (pushed: yes/no)
-- PR: <number or none>
-- workers: <agent> (running | returned, commit <sha>)
-- blocked on: <the question for the user, or nothing>
+RESUME: (rewritten after every step; the history below only grows)
+- status: investigating | implementing | pr-open | review-loop | blocked | verifying — <one line on where it stands>
 - next: <the single next action>
+- waiting on: <whom or what, or nothing>
+- in flight: repo/worktree <absolute path>; branch <name> (pushed: yes/no); PR <number or none>; workers <agent> (running | returned, commit <sha>)
+- last session: <session name>, <YYYY-MM-DD>
+
+History:
+- <YYYY-MM-DD> <one line per step, newest last>
 ```
 
 Write to it the moment state changes, not at the end. Re-read it after any compaction: **the file

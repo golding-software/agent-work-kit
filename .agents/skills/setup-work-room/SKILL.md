@@ -95,6 +95,8 @@ not a fragment; leave the HTML comments in place as guidance for the user):
   "<Org>/work-room"}}}` and `"enabledPlugins": {"work-room@golding-work": true,
   "<org>-conventions@<org>": true}`. Then offer to run `/work-room:sync-repos` to clone them.
 
+Also create the empty `.claude/state/resume/` folder: resume prompts go there (see the AGENTS.md hand-off section).
+
 In an org room, the room is a repository the developers share: commit `AGENTS.md`, `CLAUDE.md`,
 `settings.json` and `repos.md`; keep `.claude/state/` and `.claude/settings.local.json` out of version control.
 Elsewhere, keep `.claude/state/` out of version control unless the user wants it shared: suggest adding it to
@@ -105,6 +107,10 @@ Elsewhere, keep `.claude/state/` out of version control unless the user wants it
 List every file written (or proposed beside an existing one), the choices you inferred rather than
 asked, and three next steps for the user: read `AGENTS.md` and tighten the top rule; add
 credentials to the "Authentication" section as they come up; start a fresh session so the rules load.
+
+Optional next step: turn on the context-size check, which reminds a session to hand a topic off when its context
+gets large. Add `"env": {"WORK_ROOM_CONTEXT_GUARD": "on"}` to `.claude/settings.json` (what it does and the
+thresholds: `docs/resume.md` in the agent-work-kit repository).
 
 ## On other surfaces
 
