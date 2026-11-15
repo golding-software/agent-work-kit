@@ -52,6 +52,10 @@ What differs per surface, and what was tested where: [docs/surfaces.md](docs/sur
 
 The plugins under `plugins/` are the source. `.claude/skills/` and `managed-agents/` are generated:
 run `python3 scripts/build.py` after any change (CI runs `--check`).
+`.github/workflows/pr-review.yml` is generated too: it inlines `ci/api-review-requirements.txt`, so a bump of
+that file (a Dependabot security update included) needs `python3 scripts/build.py` and the regenerated workflow
+committed on the same branch, or `check` fails with "pr-review.yml is stale". Dependabot cannot run it: push the
+regenerated file to its branch (a commit by the workflow token would start no checks, so this stays a manual step).
 
 MIT licensed. Made by [Golding Software](https://goldingsoftware.com.au).
 
