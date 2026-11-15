@@ -236,7 +236,8 @@ def main():
     threads_wf = build_threads_workflow()
     if check:
         if not WORKFLOW.exists() or WORKFLOW.read_text() != wf:
-            errors.append(".github/workflows/pr-review.yml is stale: run scripts/build.py")
+            errors.append(".github/workflows/pr-review.yml is stale: run scripts/build.py (a bump of "
+                          "ci/api-review-requirements.txt, e.g. by Dependabot, needs it too)")
         if not THREADS_WORKFLOW.exists() or THREADS_WORKFLOW.read_text() != threads_wf:
             errors.append(".github/workflows/threads-settled.yml is stale: run scripts/build.py")
     else:
